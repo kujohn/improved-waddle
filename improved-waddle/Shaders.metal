@@ -1,4 +1,5 @@
 #include "../../Shared/MSDFFontKit/Sources/MSDFFontKit/Metal/text.metal"
+#include "../../Shared/color.metal"
 #include "../../Shared/common.metal"
 #include <metal_stdlib>
 using namespace metal;
@@ -32,21 +33,20 @@ fragment float4 fragmentShader(VertexOut in [[stage_in]],
                                [[buffer(1)]],
                                constant CharMetrics *textMetrics [[buffer(2)]],
                                texture2d<float> fontTexture [[texture(0)]]) {
+  float time = uniforms.time;
   float2 uv = in.texCoord;
-  constexpr sampler msdfSampler(mag_filter::linear, min_filter::linear);
-
-  // Transform UV coordinates
-  float2 msdfUV = uv * 2.0 - 1.0;
-  msdfUV.x *= uniforms.resolution.x / uniforms.resolution.y;
-
-  // Render text with MSDF
-  float textMask = renderTextWithMetrics(
-      fontUniforms, textMetrics, uniforms.charCount, float2(0.0, 0.0), 0.005,
-      msdfUV, fontTexture, msdfSampler, true, 1.0);
+  float2 pos = uv * 2.0 - 1.0;
+  pos.x *= uniforms.resolution.x / uniforms.resolution.y;
 
   float3 color = float3(0.0);
+  float3 c1 = toOKLab(toLinear(float3(0.288, 0.059, 0.963)));
 
-  color = textMask;
+  float anim = (cos(time) * .5 + .5);
+  c1 = toOKLab(float3(uv.x, uv.y, anim));
+  float cir = circleSDF(pos, .9);
+  cir = smoothstep(0, 0.01, cir);
+  color = toRGB(fromOKLab(c1));
+  color -= cir;
 
   return float4(color, 1.0);
 }
